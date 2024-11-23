@@ -70,42 +70,42 @@ macro_rules! impl_vecs {
 
             impl $name {
                 /// Create a new vector from an array of elements.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub const fn from_array(arr: [$prim; $count]) -> $name {
                     bytemuck::must_cast(arr)
                 }
 
                 /// Return an array containing all elements within the vector.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub const fn to_array(self) -> [$prim; $count] {
                     bytemuck::must_cast(self)
                 }
 
                 /// Return an array reference containing all elements within the vector.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub const fn as_array(&self) -> &[$prim; $count] {
                     bytemuck::must_cast_ref(self)
                 }
 
                 /// Return a mutable array reference containing all elements within the vector.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub fn as_array_mut(&mut self) -> &mut [$prim; $count] {
                     bytemuck::must_cast_mut(self)
                 }
 
                 /// Return a slice containing all elements within the vector.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub const fn as_slice(&self) -> &[$prim] {
                     self.as_array()
                 }
 
                 /// Return a mutable slice containing all elements within the vector.
-                #[inline]
+                #[inline(always)]
                 #[must_use]
                 pub fn as_slice_mut(&mut self) -> &mut [$prim] {
                     self.as_array_mut()
@@ -113,63 +113,63 @@ macro_rules! impl_vecs {
             }
 
             impl AsRef<[$prim; $count]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn as_ref(&self) -> &[$prim; $count] {
                     self.as_array()
                 }
             }
 
             impl AsMut<[$prim; $count]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn as_mut(&mut self) -> &mut [$prim; $count] {
                     self.as_array_mut()
                 }
             }
 
             impl core::borrow::Borrow<[$prim; $count]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn borrow(&self) -> &[$prim; $count] {
                     self.as_array()
                 }
             }
 
             impl core::borrow::BorrowMut<[$prim; $count]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn borrow_mut(&mut self) -> &mut [$prim; $count] {
                     self.as_array_mut()
                 }
             }
 
             impl AsRef<[$prim]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn as_ref(&self) -> &[$prim] {
                     self.as_slice()
                 }
             }
 
             impl AsMut<[$prim]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn as_mut(&mut self) -> &mut [$prim] {
                     self.as_slice_mut()
                 }
             }
 
             impl core::borrow::Borrow<[$prim]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn borrow(&self) -> &[$prim] {
                     self.as_slice()
                 }
             }
 
             impl core::borrow::BorrowMut<[$prim]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn borrow_mut(&mut self) -> &mut [$prim] {
                     self.as_slice_mut()
                 }
             }
 
             impl From<[$prim; $count]> for $name {
-                #[inline]
+                #[inline(always)]
                 fn from(arr: [$prim; $count]) -> $name {
                     $name::from_array(arr)
                 }
@@ -178,21 +178,21 @@ macro_rules! impl_vecs {
             impl core::ops::Index<usize> for $name {
                 type Output = $prim;
 
-                #[inline]
+                #[inline(always)]
                 fn index(&self, index: usize) -> &$prim {
                     &self.as_array()[index]
                 }
             }
 
             impl core::ops::IndexMut<usize> for $name {
-                #[inline]
+                #[inline(always)]
                 fn index_mut(&mut self, index: usize) -> &mut $prim {
                     &mut self.as_array_mut()[index]
                 }
             }
 
             impl From<$name> for [$prim; $count] {
-                #[inline]
+                #[inline(always)]
                 fn from(vec: $name) -> [$prim; $count] {
                     vec.to_array()
                 }
