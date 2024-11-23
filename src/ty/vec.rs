@@ -68,6 +68,11 @@ macro_rules! impl_vecs {
                 $vis struct $name<$prim, $count>
             );
 
+            const _: () = {
+                assert!(size_of::<$name>() == $align, "unexpected size");
+                assert!(align_of::<$name>() == $align, "unexpected alignment");
+            };
+
             impl $name {
                 /// Create a new vector from an array of elements.
                 #[inline(always)]
@@ -198,11 +203,7 @@ macro_rules! impl_vecs {
                 }
             }
 
-            $(
-                impl $(<$eq>)? Eq for $name {
-
-                }
-            )?
+            $(impl $(<$eq>)? Eq for $name {})?
 
             $(
                 impl $(<$hash>)? core::hash::Hash for $name {
