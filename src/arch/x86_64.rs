@@ -1,7 +1,11 @@
-use crate::ty::vec::*;
-// use intrin::{__m128, __m128d, __m128i, __m256, __m256d, __m256i, __m512, __m512d, __m512i};
+use crate::{macros::tokens, ty::vec::*};
 
 use bytemuck::TransparentWrapper;
+
+tokens! {
+    Aes = "aes";
+    Sha = "sha";
+}
 
 impl_intrin!(
     pub struct m512(__m512) {
@@ -275,6 +279,4 @@ pub(self) use impl_intrin;
 pub use core::arch::x86_64 as intrin;
 
 mod aes;
-pub use aes::*;
 mod sha;
-pub use sha::*;

@@ -2,9 +2,9 @@
 
 /// Mask types.
 pub mod mask;
+#[allow(unused_imports)]
+pub use mask::*;
 
 /// Vector types.
 pub mod vec;
-
-pub use mask::*;
 pub use vec::*;
