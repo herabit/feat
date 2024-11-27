@@ -61,3 +61,69 @@ macro_rules! tokens {
 }
 
 pub(crate) use tokens;
+
+/// Maps a given type to the idenfier of the type needed for it to perform casts.
+macro_rules! param_ty {
+    (&[$ty:ty]) => {
+        cast_slice
+    };
+    (&mut [$ty:ty]) => {
+        cast_slice_mut
+    };
+    (&$ty:ty) => {
+        cast_ref
+    };
+    (&mut $ty:ty) => {
+        cast_mut
+    };
+    (*const $ty:ty) => {
+        <*const $ty>::cast
+    };
+    (*mut $ty:ty) => {
+        <*mut $ty>::cast
+    };
+    ($ty:ty) => {
+        cast
+    };
+    () => {
+        $crate::macros::param_ty!(())
+    };
+}
+
+pub(crate) use param_ty;
+
+/// Constructs a delegated method.
+macro_rules! delegate {
+    ($(
+        $(#[$meta:meta])*
+        $(unsafe $($unsafe:lifetime)?)?
+        fn $name:ident
+            $(< $(const $gen:ident: $gen_ty:ty),* $(,)? >)?
+        (
+            $($arg:ident: { $($arg_ty:tt)+ }),* $(,)?
+        ) $(-> { $($ret_ty:tt)+ })? = $intrin:ident;
+    )*) => {
+        $(
+            $(#[$meta])*
+            #[inline(always)]
+            #[must_use]
+            // #[doc(alias = stringify!($intrin))]
+            #[doc = ""]
+            #[doc = "# Intrinsic"]
+            #[doc = ""]
+            #[doc = concat!(
+                "This method utilizes the [`",
+                stringify!($intrin),
+                "`] intrinsic."
+            )]
+            pub $(unsafe $($unsafe)?)? fn $name $(< $(const $gen: $gen_ty),*  >)?
+                (self, $($arg: $($arg_ty)*),* ) $(-> $($ret_ty)*)?
+            {
+                let result = unsafe { $intrin $(::<$($gen),*>)?($($crate::macros::param_ty!($($arg_ty)*)($arg)),*) };
+                $crate::macros::param_ty!($($($ret_ty)*)?)(result)
+            }
+        )*
+    };
+}
+
+pub(crate) use delegate;
