@@ -1,3 +1,19 @@
+impl_vecs!(8, 64;
+    pub struct u8x8<u8, 8> Eq Hash;
+    pub struct i8x8<i8, 8> Eq Hash;
+
+    pub struct u16x4<u16, 4> Eq Hash;
+    pub struct i16x4<i16, 4> Eq Hash;
+
+    pub struct u32x2<u32, 2> Eq Hash;
+    pub struct i32x2<i32, 2> Eq Hash;
+    pub struct f32x2<f32, 2>;
+
+    // pub struct u64x1<u64, 1> Eq Hash;
+    // pub struct i64x1<i64, 1> Eq Hash;
+    // pub struct f64x1<f64, 1>;
+);
+
 impl_vecs!(16, 128;
     pub struct u8x16<u8, 16> Eq Hash;
     pub struct i8x16<i8, 16> Eq Hash;
