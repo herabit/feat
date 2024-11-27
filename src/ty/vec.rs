@@ -406,6 +406,7 @@ macro_rules! mask_vecs {
 
             const _: ()  = {
                 assert!(size_of::<$name>() == $align);
+                assert!(size_of::<$name>() == size_of::<[$mask; $count]>());
                 assert!(align_of::<$name>() == $align);
             };
 
@@ -601,6 +602,7 @@ macro_rules! impl_vecs {
 
             const _: () = {
                 assert!(size_of::<$name>() == $align);
+                assert!(size_of::<$name>() == size_of::<[$prim; $count]>());
                 assert!(align_of::<$name>() == $align);
             };
 
