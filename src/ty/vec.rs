@@ -285,11 +285,6 @@ impl_vecs!(64, 512;
     pub struct f64x8<f64, 8>;
 );
 
-#[no_mangle]
-pub fn valid_mask(b: f32x4) -> bool {
-    b.is_valid_mask()
-}
-
 mask_vecs!(64, 512;
     pub struct m8x64<m8, 64> {
         u8x64: {
