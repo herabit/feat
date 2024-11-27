@@ -1,3 +1,5 @@
+use crate::muck;
+
 impl_vecs!(8, 64;
     pub struct u8x8<u8, 8> Eq Hash;
     pub struct i8x8<i8, 8> Eq Hash;
@@ -94,28 +96,28 @@ macro_rules! impl_vecs {
                 #[inline(always)]
                 #[must_use]
                 pub const fn from_array(arr: [$prim; $count]) -> $name {
-                    bytemuck::must_cast(arr)
+                    muck::cast(arr)
                 }
 
                 /// Return an array containing all elements within the vector.
                 #[inline(always)]
                 #[must_use]
                 pub const fn to_array(self) -> [$prim; $count] {
-                    bytemuck::must_cast(self)
+                    muck::cast(self)
                 }
 
                 /// Return an array reference containing all elements within the vector.
                 #[inline(always)]
                 #[must_use]
                 pub const fn as_array(&self) -> &[$prim; $count] {
-                    bytemuck::must_cast_ref(self)
+                    muck::cast_ref(self)
                 }
 
                 /// Return a mutable array reference containing all elements within the vector.
                 #[inline(always)]
                 #[must_use]
-                pub fn as_array_mut(&mut self) -> &mut [$prim; $count] {
-                    bytemuck::must_cast_mut(self)
+                pub const fn as_array_mut(&mut self) -> &mut [$prim; $count] {
+                    muck::cast_mut(self)
                 }
 
                 /// Return a slice containing all elements within the vector.
@@ -128,7 +130,7 @@ macro_rules! impl_vecs {
                 /// Return a mutable slice containing all elements within the vector.
                 #[inline(always)]
                 #[must_use]
-                pub fn as_slice_mut(&mut self) -> &mut [$prim] {
+                pub const fn as_slice_mut(&mut self) -> &mut [$prim] {
                     self.as_array_mut()
                 }
             }

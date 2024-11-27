@@ -1,11 +1,13 @@
 #![cfg_attr(not(test), no_std)]
 
-#[doc(inline)]
-pub use bytemuck::{must_cast, must_cast_mut, must_cast_ref, must_cast_slice, must_cast_slice_mut};
-
+/// Platform-specific functionality.
 pub mod arch;
+/// Tools for mucking around with data.
+pub mod muck;
+/// SIMD types such as vectors.
 pub mod ty;
 
+/// Macros
 mod macros;
 
 /// Essentially [`FnOnce`] that anyone can implement.
