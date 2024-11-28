@@ -410,7 +410,7 @@ macro_rules! vec_common {
                         elems = rest;
                     }
 
-                    all_valid
+                    all_valid $(| true $($is_mask)? )?
                 }
 
                 #[doc = concat!(
