@@ -2,8 +2,10 @@
 
 /// Mask types.
 pub mod mask;
-pub use mask::*;
-
 /// Vector types.
 pub mod vec;
+
+#[doc(inline)]
+pub use mask::*;
+#[doc(inline)]
 pub use vec::*;

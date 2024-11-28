@@ -1,11 +1,11 @@
-impl_lane_mask! {
+define_masks! {
     struct m8<8>(i8, u8);
     struct m16<16>(i16, u16);
     struct m32<32>(i32, u32, f32);
     struct m64<64>(i64, u64, f64);
 }
 
-macro_rules! impl_lane_mask {
+macro_rules! define_masks {
     ($(
         $(#[$meta:meta])*
         struct $name:ident<$bits:literal>($repr:ident $(, $rest:ident)* $(,)?);
@@ -15,7 +15,6 @@ macro_rules! impl_lane_mask {
             #[allow(non_camel_case_types)]
             #[repr($repr)]
             #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-            #[derive(bytemuck::Zeroable, bytemuck::NoUninit, bytemuck::CheckedBitPattern, bytemuck::Contiguous)]
             #[doc = concat!(
                 "A lane-wise mask type for vectors whose lanes are ",
                 stringify!($bits), "-bits wide."
@@ -34,11 +33,11 @@ macro_rules! impl_lane_mask {
                  *undefined behavior*."
             )]
             pub enum $name {
-                /// `false`: all zeros.
+                /// All bits are set to zero.
                 #[default]
-                False = 0,
-                /// `true`: all ones.
-                True = -1,
+                Unset = 0,
+                /// All bits are set to one.
+                Set = -1,
             }
 
             impl $name {
@@ -47,8 +46,8 @@ macro_rules! impl_lane_mask {
                 #[must_use]
                 pub const fn from_bool(b: bool) -> $name {
                     match b {
-                        true => $name::True,
-                        false => $name::False,
+                        true => $name::Set,
+                        false => $name::Unset,
                     }
                 }
 
@@ -57,8 +56,8 @@ macro_rules! impl_lane_mask {
                 #[must_use]
                 pub const fn to_bool(self) -> bool {
                     match self {
-                        $name::True => true,
-                        $name::False => false,
+                        $name::Set => true,
+                        $name::Unset => false,
                     }
                 }
 
@@ -74,8 +73,8 @@ macro_rules! impl_lane_mask {
                 #[must_use]
                 pub const fn try_from_repr(repr: $repr) -> Option<$name> {
                     match repr {
-                        -1 => Some($name::True),
-                        0 => Some($name::False),
+                        -1 => Some($name::Set),
+                        0 => Some($name::Unset),
                         _ => None,
                     }
                 }
@@ -121,6 +120,23 @@ macro_rules! impl_lane_mask {
                 }
             }
 
+            unsafe impl bytemuck::Zeroable for $name {}
+            unsafe impl bytemuck::NoUninit for $name {}
+            unsafe impl bytemuck::CheckedBitPattern for $name {
+                type Bits = $repr;
+
+                #[inline(always)]
+                fn is_valid_bit_pattern(bits: &$repr) -> bool {
+                    $name::try_from_repr(*bits).is_some()
+                }
+            }
+            unsafe impl bytemuck::Contiguous for $name {
+                type Int = $repr;
+
+                const MIN_VALUE: $repr = -1;
+                const MAX_VALUE: $repr = 0;
+            }
+
             impl From<bool> for $name {
                 #[inline]
                 fn from(b: bool) -> $name {
@@ -138,4 +154,4 @@ macro_rules! impl_lane_mask {
     };
 }
 
-pub(self) use impl_lane_mask;
+pub(self) use define_masks;

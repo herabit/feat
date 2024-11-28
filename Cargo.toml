@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bytemuck = { version = "1.20.0", features = ["aarch64_simd", "min_const_generics", "derive", "must_cast"] }
+bytemuck = { version = "1.20.0", features = ["aarch64_simd", "min_const_generics", "must_cast"] }

@@ -90,7 +90,7 @@ pub const fn cast_slice_mut<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPat
 
 #[inline(always)]
 #[must_use]
-const fn _cast<A: NoUninit, B: AnyBitPattern>(a: A) -> B {
+pub const fn transmute<A: NoUninit, B: AnyBitPattern>(a: A) -> B {
     assert!(size_of::<A>() == size_of::<B>());
 
     #[repr(C)]
@@ -109,11 +109,11 @@ const fn _cast<A: NoUninit, B: AnyBitPattern>(a: A) -> B {
 pub const fn all_zeros<A: NoUninit>(a: A) -> bool {
     match size_of::<A>() {
         0 => false,
-        1 => _cast::<_, u8>(a) == 0,
-        2 => _cast::<_, u16>(a) == 0,
-        4 => _cast::<_, u32>(a) == 0,
-        8 => _cast::<_, u64>(a) == 0,
-        16 => _cast::<_, u128>(a) == 0,
+        1 => transmute::<_, u8>(a) == 0,
+        2 => transmute::<_, u16>(a) == 0,
+        4 => transmute::<_, u32>(a) == 0,
+        8 => transmute::<_, u64>(a) == 0,
+        16 => transmute::<_, u128>(a) == 0,
         _ => {
             let mut bytes: &[u8] = cast_slice(from_ref(&a));
             let mut all_zeros = true;
@@ -135,11 +135,11 @@ pub const fn all_zeros<A: NoUninit>(a: A) -> bool {
 pub const fn all_ones<A: NoUninit>(a: A) -> bool {
     match size_of::<A>() {
         0 => false,
-        1 => _cast::<_, u8>(a) == !0,
-        2 => _cast::<_, u16>(a) == !0,
-        4 => _cast::<_, u32>(a) == !0,
-        8 => _cast::<_, u64>(a) == !0,
-        16 => _cast::<_, u128>(a) == !0,
+        1 => transmute::<_, u8>(a) == !0,
+        2 => transmute::<_, u16>(a) == !0,
+        4 => transmute::<_, u32>(a) == !0,
+        8 => transmute::<_, u64>(a) == !0,
+        16 => transmute::<_, u128>(a) == !0,
         _ => {
             let mut bytes: &[u8] = cast_slice(from_ref(&a));
             let mut all_ones = true;
