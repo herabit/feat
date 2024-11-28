@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 /// Define a collection of type level proofs for the existence of some, "fundamental"
 /// CPU feature.
 macro_rules! tokens {

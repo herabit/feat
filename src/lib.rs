@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 /// Platform-specific functionality.
-pub mod arch;
+// pub mod arch;
 /// Tools for mucking around with data.
 pub mod muck;
 /// SIMD types such as vectors.
