@@ -495,6 +495,8 @@ macro_rules! impl_mask {
                 #[inline(always)]
                 #[must_use]
                 pub const fn validate_repr(repr: &signed!($name)) -> bool {
+                    // FIXME: Add better heuristics for determining a chunk size
+                    //        to offer even better codegen.
                     const CHUNK_SIZE: usize = if size_of::<usize>() % size_of::<lane!($name)>() == 0 {
                         size_of::<usize>() / size_of::<lane!($name)>()
                     } else {
