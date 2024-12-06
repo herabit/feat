@@ -487,21 +487,3 @@ define_mask! {
     m64(i64, u64, "64-bit"),
     msize(isize, usize, "pointer-sized"),
 }
-
-#[no_mangle]
-fn xor(a: &mut &m8, b: m8) {
-    *a ^= b;
-}
-
-#[no_mangle]
-fn promote(a: msize) -> &'static msize {
-    a.promote()
-}
-
-#[no_mangle]
-fn promote_old(a: msize) -> &'static msize {
-    match a {
-        msize::True => &msize::True,
-        msize::False => &msize::False,
-    }
-}
