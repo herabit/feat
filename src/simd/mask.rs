@@ -20,6 +20,9 @@ pub unsafe trait Mask:
     + Ord
     + Hash
 {
+    type Signed: Lane<Mask = Self>;
+    type Unsigned: Lane<Mask = Self>;
+
     /// All bits are set.
     const TRUE: Self;
     /// No bits are set.
@@ -473,6 +476,9 @@ macro_rules! define_mask {
             }
 
             unsafe impl Mask for $name {
+                type Signed = $signed;
+                type Unsigned = $unsigned;
+
                 const TRUE: $name = $name::True;
                 const FALSE: $name = $name::False;
             }
