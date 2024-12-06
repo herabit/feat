@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bytemuck = { version = "1.20.0", features = ["aarch64_simd", "min_const_generics", "must_cast"] }
+bytemuck = { version = "1.20", default-features = false, optional = true }
+serde = { version = "1", default-features = false, optional = true }
+rand = { version = "0.8", default-features = false, optional = true }
+
+[features]
+default = ["std"]
+std = ["bytemuck?/extern_crate_std", "serde?/std", "rand?/std"]
