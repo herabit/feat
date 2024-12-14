@@ -109,7 +109,6 @@ macro_rules! vector_docs {
     };
 }
 
-#[allow(unused)]
 pub(crate) use vector_docs;
 
 macro_rules! vector_base {
@@ -158,5 +157,4 @@ macro_rules! vector_base {
     };
 }
 
-#[allow(unused)]
 pub(crate) use vector_base;
