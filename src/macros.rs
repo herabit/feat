@@ -145,7 +145,7 @@ macro_rules! vector_base {
         impl $name {
             #[doc = concat!(
                 "Construct a new [`", stringify!($name), "`] from a \
-                `[", stringify!($scalar), "; ", stringify!($lanes), "]."
+                `[", stringify!($scalar), "; ", stringify!($lanes), "]`."
             )]
             #[inline(always)]
             #[must_use]
