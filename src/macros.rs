@@ -87,3 +87,76 @@ macro_rules! select {
 }
 
 pub(crate) use select;
+
+macro_rules! vector_docs {
+    (@plurality 1) => { "" };
+    (@plurality $tt:tt) => { "s" };
+
+    (@consonant 8) => { "An" };
+    (@consonant $tt:tt) => { "A" };
+
+    (
+        [$scalar:ident; $lanes:tt]: $bits:tt
+        $(,)?
+    ) => {
+        concat!(
+            $crate::macros::vector_docs!(@consonant $bits), " ",
+            stringify!($bits), "-bit vector containing ",
+            stringify!($lanes), " [`", stringify!($scalar), "`]",
+            $crate::macros::vector_docs!(@plurality $lanes),
+            "."
+        )
+    };
+}
+
+#[allow(unused)]
+pub(crate) use vector_docs;
+
+macro_rules! vector_base {
+    ($name:ident $(/ $half:ident)?: [$scalar:ident; $lanes:tt]) => {
+        const _: () = {
+            #[allow(unused)]
+            use ::core::mem::{ size_of, align_of };
+
+            assert!(
+                size_of::<$name>() == size_of::<[$scalar; $lanes]>(),
+                "vector does not have the same size as its corresponding array"
+            );
+
+            assert!(
+                align_of::<$name>() >= align_of::<[$scalar; $lanes]>(),
+                "vector must not have a lower alignment than its corresponding array"
+            );
+
+            $(
+                assert!(
+                    size_of::<$name>() == size_of::<[$half; 2]>(),
+                    "vector is not double the size of the vector half its length"
+                );
+
+                assert!(
+                    align_of::<$name>() >= align_of::<$half>(),
+                    "the alignment of a vector must not be less than the alignment \
+                     of the vector half its length"
+                );
+            )?
+        };
+
+        impl $name {
+            #[doc = concat!(
+                "Construct a new [`", stringify!($name), "`] from a \
+                `[", stringify!($scalar), "; ", stringify!($lanes), "]."
+            )]
+            #[inline(always)]
+            #[must_use]
+            pub const fn from_array(array: [$scalar; $lanes]) -> $name {
+                // SAFETY: We know that `array` and `name` are the same size
+                //         and that vectors are just arrays of their scalar type.
+                unsafe { ::core::mem::transmute(array) }
+            }
+        }
+    };
+}
+
+#[allow(unused)]
+pub(crate) use vector_base;
