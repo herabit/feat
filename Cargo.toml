@@ -2,11 +2,14 @@
 name = "feat"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.83"
 
 [dependencies]
+# bytemuck = { version = "1.20", default-features = false, features = ["aarch64_simd", "wasm_simd", "const_zeroed", "must_cast", "track_caller"] }
 bytemuck = { version = "1.20", default-features = false, optional = true }
 serde = { version = "1", default-features = false, optional = true }
 rand = { version = "0.8", default-features = false, optional = true }
+# cfg-if = "1.0.0"
 
 [features]
 default = ["std"]
