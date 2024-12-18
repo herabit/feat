@@ -11,10 +11,10 @@ macro_rules! vector_docs {
         [$scalar:ident; $lanes:tt]: $bits:tt
         $(,)?
     ) => {
-        concat!(
+        ::core::concat!(
             $crate::macros::vector_docs!(@consonant $bits), " ",
-            stringify!($bits), "-bit vector containing ",
-            stringify!($lanes), " [`", stringify!($scalar), "`]",
+            ::core::stringify!($bits), "-bit vector containing ",
+            ::core::stringify!($lanes), " [`", ::core::stringify!($scalar), "`]",
             $crate::macros::vector_docs!(@plurality $lanes), ".",
         )
     };
