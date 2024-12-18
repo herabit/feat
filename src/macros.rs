@@ -23,7 +23,7 @@ macro_rules! vector_docs {
 pub(crate) use vector_docs;
 
 macro_rules! vector_base {
-    ($name:ident $(/ $half:ident)?: [$scalar:ident; $lanes:tt], $bits:tt) => {
+    ($name:ident $(/ $half:ident)? : [$scalar:ident; $lanes:tt], $bits:tt) => {
         // Layout checks
         const _: () = {
             #[allow(unused)]
@@ -80,6 +80,16 @@ macro_rules! vector_base {
                 unsafe { ::core::mem::transmute(array) }
             }
 
+            $(
+                /// Create a new vector by joining two halves of a vector.
+                #[inline(always)]
+                #[must_use]
+                pub const fn from_halves(a: $half, b: $half) -> $name {
+                    // SAFETY: We know they have the same in-memory representation.
+                    unsafe { ::core::mem::transmute([a, b]) }
+                }
+            )?
+
             /// Create a new vector by reading a slice of scalars.
             ///
             /// # Panics
@@ -103,6 +113,25 @@ macro_rules! vector_base {
                 unsafe { ::core::mem::transmute(self) }
             }
 
+            $(
+                /// Split this vector into an array of halves.
+                #[inline(always)]
+                #[must_use]
+                pub const fn to_halves(self) -> [$half; 2] {
+                    // SAFETY: We know they have the same in-memory representation.
+                    unsafe { ::core::mem::transmute(self) }
+                }
+
+                /// Split this vector into two halves.
+                #[inline(always)]
+                #[must_use]
+                pub const fn split(self) -> ($half, $half) {
+                    let [a, b] = self.to_halves();
+
+                    (a, b)
+                }
+            )?
+
             /// Get a reference to the inner array of scalars.
             #[inline(always)]
             #[must_use]
@@ -113,6 +142,18 @@ macro_rules! vector_base {
                 unsafe { &*(self as *const $name as *const [$scalar; $lanes]) }
             }
 
+            $(
+                /// Get a reference to this vector's halves.
+                #[inline(always)]
+                #[must_use]
+                pub const fn as_halves(&self) -> &[$half; 2] {
+                    // SAFETY: We do compile time checks to ensure they have
+                    //         the same layout and that this type
+                    //         is properly aligned.
+                    unsafe { &*(self as *const $name as *const [$half; 2]) }
+                }
+            )?
+
             /// Get a mutable reference to the inner array of scalars.
             #[inline(always)]
             #[must_use]
@@ -122,6 +163,20 @@ macro_rules! vector_base {
                 //         properly aligned.
                 unsafe { &mut *(self as *mut $name as *mut [$scalar; $lanes]) }
             }
+
+            $(
+                /// Get a mutable reference to this vector's halves.
+                #[inline(always)]
+                #[must_use]
+                pub const fn as_halves_mut(&mut self) -> &mut [$half; 2] {
+                    // SAFETY: We know that this vector is properly
+                    //         aligned for the vector half it's size,
+                    //         and that this vector has the same
+                    //         memory layout as an array of two halves
+                    //         of it.
+                    unsafe { &mut *(self as *mut $name as *mut [$half; 2]) }
+                }
+            )?
 
             /// Get a reference to the inner slice of scalars.
             #[inline(always)]
