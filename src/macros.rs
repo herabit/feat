@@ -98,6 +98,8 @@ macro_rules! vector_base {
             #[inline(always)]
             #[must_use]
             pub const fn from_slice(slice: &[$scalar]) -> $name {
+                use ::core::panic;
+
                 if slice.len() >= $lanes {
                     $name::from_array(unsafe { (slice as *const [$scalar] as *const [$scalar; $lanes]).read() })
                 } else {
@@ -193,31 +195,110 @@ macro_rules! vector_base {
             }
         }
 
-        impl core::borrow::Borrow<[$scalar; $lanes]> for $name {
+        impl ::core::borrow::Borrow<[$scalar; $lanes]> for $name {
             #[inline(always)]
             fn borrow(&self) -> &[$scalar; $lanes] {
                 self.as_array()
             }
         }
 
-        impl core::borrow::BorrowMut<[$scalar; $lanes]> for $name {
-            #[inline(always)]
-            fn borrow_mut(&mut self) -> &mut [$scalar; $lanes] {
-                self.as_array_mut()
-            }
-        }
-
-        impl core::borrow::Borrow<[$scalar]> for $name {
+        impl ::core::borrow::Borrow<[$scalar]> for $name {
             #[inline(always)]
             fn borrow(&self) -> &[$scalar] {
                 self.as_slice()
             }
         }
 
-        impl core::borrow::BorrowMut<[$scalar]> for $name {
+        $(
+            impl ::core::borrow::Borrow<[$half; 2]> for $name {
+                #[inline(always)]
+                fn borrow(&self) -> &[$half; 2] {
+                    self.as_halves()
+                }
+            }
+
+            impl ::core::borrow::Borrow<[$half]> for $name {
+                #[inline(always)]
+                fn borrow(&self) -> &[$half] {
+                    self.as_halves()
+                }
+            }
+        )?
+
+        impl ::core::borrow::BorrowMut<[$scalar; $lanes]> for $name {
+            #[inline(always)]
+            fn borrow_mut(&mut self) -> &mut [$scalar; $lanes] {
+                self.as_array_mut()
+            }
+        }
+
+
+        impl ::core::borrow::BorrowMut<[$scalar]> for $name {
             #[inline(always)]
             fn borrow_mut(&mut self) -> &mut [$scalar] {
                 self.as_slice_mut()
+            }
+        }
+
+
+        $(
+            impl ::core::borrow::BorrowMut<[$half; 2]> for $name {
+                #[inline(always)]
+                fn borrow_mut(&mut self) -> &mut [$half; 2] {
+                    self.as_halves_mut()
+                }
+            }
+
+            impl ::core::borrow::BorrowMut<[$half]> for $name {
+                #[inline(always)]
+                fn borrow_mut(&mut self) -> &mut [$half] {
+                    self.as_halves_mut()
+                }
+            }
+        )?
+
+        impl ::core::convert::AsRef<[$scalar; $lanes]> for $name {
+            #[inline(always)]
+            fn as_ref(&self) -> &[$scalar; $lanes] {
+                self.as_array()
+            }
+        }
+
+        impl ::core::convert::AsRef<[$scalar]> for $name {
+            #[inline(always)]
+            fn as_ref(&self) -> &[$scalar] {
+                self.as_slice()
+            }
+        }
+
+        $(
+            impl ::core::convert::AsRef<[$half; 2]> for $name {
+                #[inline(always)]
+                fn as_ref(&self) -> &[$half; 2] {
+                    self.as_halves()
+                }
+            }
+
+            impl ::core::convert::AsRef<[$half]> for $name {
+                #[inline(always)]
+                fn as_ref(&self) -> &[$half] {
+                    self.as_halves()
+                }
+            }
+        )?
+
+        impl ::core::fmt::Debug for $name {
+            #[inline]
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                use ::core::fmt::{Formatter, DebugTuple};
+
+                let mut debug = &mut Formatter::debug_tuple(f, "");
+
+                for value in self.as_array() {
+                    debug = DebugTuple::field(debug, value);
+                }
+
+                DebugTuple::finish(debug)
             }
         }
     };

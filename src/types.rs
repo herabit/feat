@@ -2,6 +2,3 @@
 
 /// Module containing vector types.
 pub mod vector;
-
-// #[doc(inline)]
-// pub use vector::exports::*;
