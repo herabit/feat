@@ -9,5 +9,4 @@ pub(crate) use ::core::arch::x86 as raw;
 mod sse;
 pub use sse::*;
 
-mod float;
-pub use float::*;
+pub mod float;

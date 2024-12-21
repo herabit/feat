@@ -1,383 +1,488 @@
-use super::raw::*;
+use crate::util::string::{starts_with, strip_prefix};
+use core::fmt;
 
-/// A more Rusty way of representing AVX floating point comparison operators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FloatCmp {
-    /// Equals (`a == b`)
-    Eq(Order, Noise),
-    /// Not-equals (`a != b`)
-    Neq(Order, Noise),
+#[rustfmt::skip]
+use super::raw::{
+    _CMP_EQ_OQ, _CMP_EQ_OS, _CMP_EQ_UQ, _CMP_EQ_US,
+    _CMP_NEQ_OQ, _CMP_NEQ_OS, _CMP_NEQ_UQ, _CMP_NEQ_US,
+    
+    _CMP_GE_OQ, _CMP_GE_OS, 
+    _CMP_GT_OQ, _CMP_GT_OS, 
+    _CMP_LE_OQ, _CMP_LE_OS,
+    _CMP_LT_OQ, _CMP_LT_OS,
+    _CMP_NGE_UQ, _CMP_NGE_US,
+    _CMP_NGT_UQ, _CMP_NGT_US,
+    _CMP_NLE_UQ, _CMP_NLE_US,
+    _CMP_NLT_UQ, _CMP_NLT_US,
+    _CMP_ORD_Q, _CMP_ORD_S,
+    _CMP_UNORD_Q, _CMP_UNORD_S,
 
-    /// Greater-than-or-equal (`a >= b`)
-    Ge(Noise),
-    /// Not-greater-than-or-equal (`!(a >= b)`)
-    Nge(Noise),
+    
+    _CMP_FALSE_OQ, _CMP_FALSE_OS,
+    _CMP_TRUE_UQ, _CMP_TRUE_US,
+};
 
-    /// Greater-than (`a > b`)
-    Gt(Noise),
-    /// Not-greater-than (`!(a > b)`)
-    Ngt(Noise),
+macro_rules! define {
+    (
 
-    /// Less-than-or-equal (`a <= b`)
-    Le(Noise),
-    /// Not-less-than-or-equal (`!(a <= b)`)
-    Nle(Noise),
+        $(#[$attr:meta])*
+        $vis:vis enum $name:ident {
+            $(
+                #[doc = $pred_doc:tt]
+                $pred_name:ident = $raw_name:ident
+            ),*
+            $(,)?
+        }
+    ) => {
+            $(#[$attr])*
+            #[repr(i32)]
+            $vis enum $name {
+                $(
+                    #[doc = $pred_doc]
+                    #[doc = ""]
+                    #[doc = concat!(
+                        "Maps to [`", stringify!($raw_name), "`]."
+                    )]
+                    $pred_name = ($raw_name as _),
+                )*
+            }
 
-    /// Less-than (`a < b`)
-    Lt(Noise),
-    /// Not-less-than (`!(a < b)`)
-    Nlt(Noise),
+            impl $name {
+                /// Get a description of this AVX floating point comparison
+                /// predicate.
+                #[inline]
+                #[must_use]
+                pub const fn description(self) -> &'static str {
+                    match self {
+                        $(
+                            $name::$pred_name => $pred_doc,
+                        )*
+                    }
+                }
 
-    /// False (`false`)
-    False(Noise),
-    /// True (`true`)
-    True(Noise),
+                /// Get the name of this AVX floating point comparison predicate.
+                #[inline]
+                #[must_use]
+                pub const fn name(self) -> &'static str {
+                    match self {
+                        $(
+                            $name::$pred_name => stringify!($name),
+                        )*
+                    }
+                }
 
-    /// Ordered (`!a.is_nan() && !b.is_nan()`)
-    Ord(Noise),
-    /// Unordered (`a.is_nan() || b.is_nan()`)
-    Unord(Noise),
-}
+                /// Get the name of this AVX floating point comparison predicate
+                /// used in C intrinsics.
+                #[inline]
+                #[must_use]
+                pub const fn c_name(self) -> &'static str {
+                    // We're doing this in a weird way to help anyone doing string comparisons.
+                    match self {
+                        $(
+                            $name::$pred_name => const {
+                                let name = stringify!($raw_name);
 
-macro_rules! constructors {
-    ($(
-        $(#[$meta:meta])*
-        $vis:vis const fn $name:ident = $variant:ident;
-    )*) => {
-        $(
-            $(#[$meta])*
-            #[allow(unused)]
-            $vis use self::FloatCmp::$variant as $name;
-        )*
+                                assert!(starts_with("_CMP_", name));
+
+                                name
+                            },
+                        )*
+                    }
+                }
+
+                /// Get the name of this AVX floating point comparison predicate
+                /// used in C intrinsics without the `_CMP_` prefix.
+                #[inline]
+                #[must_use]
+                pub const fn c_name_stripped(self) -> &'static str {
+                    // We're doing this in a weird way to help anyone doing string comparisons.
+                    match self {
+                        $(
+                            $name::$pred_name => const {
+                                match strip_prefix("_CMP_", $name::$pred_name.c_name()) {
+                                    Some(name) => name,
+                                    None => unreachable!(),
+                                }
+                            }
+                        )*
+                    }
+                }
+
+                /// Create an AVX floating point predicate from an [`i32`].
+                #[inline]
+                #[must_use]
+                pub const fn from_i32(i: i32) -> Option<$name> {
+                    match i {
+                        $(
+                            $raw_name => Some($name::$pred_name),
+                        )*
+                        // We do this so that we can ensure we've
+                        // covered all predicates.
+                        ..0 | 32.. => None,
+                    }
+                }
+            }
     };
 }
 
-constructors! {
-    const fn eq = Eq;
-    const fn not_eq = Neq;
+const RESULT_BIT: i32 = 0x04;
+const ORDER_BIT: i32 = 0x08;
+const SIGNAL_BIT: i32 = 0x10;
 
-    const fn ge = Ge;
-    const fn not_ge = Nge;
+// I feel like it is better here to use C-style enum names
+// as, it is significantly easier for me to read.
+define! {
+    /// An AVX Floating Point Predicate.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum Cmp {
+        /// Equal (ordered, quiet)
+        EQ     = _CMP_EQ_OQ,
+        /// Equal (ordered, loud)
+        EQ_LOUD = _CMP_EQ_OS,
+        /// Equal (unordered, quiet)
+        EQ_UNORD = _CMP_EQ_UQ,
+        /// Equal (unordered, loud)
+        EQ_UNORD_LOUD = _CMP_EQ_US,
 
-    const fn gt = Gt;
-    const fn not_gt = Ngt;
+        /// Not-equal (ordered, quiet)
+        NEQ = _CMP_NEQ_OQ,
+        /// Not-equal (ordered, loud)
+        NEQ_LOUD = _CMP_NEQ_OS,
+        /// Not-equal (unordered, quiet)
+        NEQ_UNORD = _CMP_NEQ_UQ,
+        /// Not-equal (unordered, loud)
+        NEQ_UNORD_LOUD = _CMP_NEQ_US,
 
-    const fn le = Le;
-    const fn not_le = Nle;
+        /// Greater-than-or-equal (ordered, quiet)
+        GE = _CMP_GE_OQ,
+        /// Greater than-or-equal (ordered, loud)
+        GE_LOUD = _CMP_GE_OS,
 
-    const fn lt = Lt;
-    const fn not_lt = Nlt;
+        /// Not-greater-than-or-equal (unordered, quiet)
+        NGE = _CMP_NGE_UQ,
+        /// Not-greater-than-or-equal (unordered, loud)
+        NGE_LOUD = _CMP_NGE_US,
 
-    const fn tru = True;
-    const fn fals = False;
+        /// Greater-than (ordered, quiet)
+        GT = _CMP_GT_OQ,
+        /// Greater-than (ordered, loud)
+        GT_LOUD = _CMP_GT_OS,
 
-    const fn ord = Ord;
-    const fn unord = Unord;
+        /// Not-greater-than (unordered, quiet)
+        NGT = _CMP_NGT_UQ,
+        /// Not-greater-than (unordered, loud)
+        NGT_LOUD = _CMP_NGT_US,
+
+        /// Less-than-or-equal (ordered, quiet)
+        LE = _CMP_LE_OQ,
+        /// Less-than-or-equal (ordered, loud)
+        LE_LOUD = _CMP_LE_OS,
+
+        /// Not-less-than-or-equal (unordered, quiet)
+        NLE = _CMP_NLE_UQ,
+        /// Not-less-than-or-equal (unordered, loud)
+        NLE_LOUD = _CMP_NLE_US,
+
+        /// Less-than (ordered, quiet)
+        LT = _CMP_LT_OQ,
+        /// Less-than (ordered, loud)
+        LT_LOUD = _CMP_LT_OS,
+
+        /// Not-less-than (unordered, quiet)
+        NLT = _CMP_NLT_UQ,
+        /// Not-less-than (unordered, loud)
+        NLT_LOUD = _CMP_NLT_US,
+
+        /// True (unordered, quiet)
+        TRUE = _CMP_TRUE_UQ,
+        /// True (unordered, loud)
+        TRUE_LOUD = _CMP_TRUE_US,
+
+        /// False (ordered, quiet)
+        FALSE = _CMP_FALSE_OQ,
+        /// False (ordered, loud)
+        FALSE_LOUD = _CMP_FALSE_OS,
+
+        /// Ordered (quiet)
+        ORD = _CMP_ORD_Q,
+        /// Ordered (loud)
+        ORD_LOUD = _CMP_ORD_S,
+
+        /// Unordered (quiet)
+        UNORD = _CMP_UNORD_Q,
+        /// Unordered (loud)
+        UNORD_LOUD = _CMP_UNORD_S,
+    }
 }
 
-impl FloatCmp {
-    /// Create a [`FloatCmp`] from an AVX immediate.
-    #[inline]
-    #[must_use]
-    pub const fn from_imm(imm: i32) -> Option<FloatCmp> {
-        match imm {
-            _CMP_EQ_OQ => Some(eq(ORD, QUIET)),
-            _CMP_EQ_OS => Some(eq(ORD, LOUD)),
-
-            _CMP_EQ_UQ => Some(eq(UNORD, QUIET)),
-            _CMP_EQ_US => Some(eq(UNORD, LOUD)),
-
-            _CMP_NEQ_OQ => Some(not_eq(ORD, QUIET)),
-            _CMP_NEQ_OS => Some(not_eq(ORD, LOUD)),
-
-            _CMP_NEQ_UQ => Some(not_eq(UNORD, QUIET)),
-            _CMP_NEQ_US => Some(not_eq(UNORD, LOUD)),
-
-            _CMP_GE_OQ => Some(ge(QUIET)),
-            _CMP_GE_OS => Some(ge(LOUD)),
-
-            _CMP_NGE_UQ => Some(not_ge(QUIET)),
-            _CMP_NGE_US => Some(not_ge(LOUD)),
-
-            _CMP_GT_OQ => Some(gt(QUIET)),
-            _CMP_GT_OS => Some(gt(LOUD)),
-
-            _CMP_NGT_UQ => Some(not_gt(QUIET)),
-            _CMP_NGT_US => Some(not_gt(LOUD)),
-
-            _CMP_LE_OQ => Some(le(QUIET)),
-            _CMP_LE_OS => Some(le(LOUD)),
-
-            _CMP_NLE_UQ => Some(not_le(QUIET)),
-            _CMP_NLE_US => Some(not_le(LOUD)),
-
-            _CMP_LT_OQ => Some(lt(QUIET)),
-            _CMP_LT_OS => Some(lt(LOUD)),
-
-            _CMP_NLT_UQ => Some(not_lt(QUIET)),
-            _CMP_NLT_US => Some(not_lt(LOUD)),
-
-            _CMP_FALSE_OQ => Some(fals(QUIET)),
-            _CMP_FALSE_OS => Some(fals(LOUD)),
-
-            _CMP_TRUE_UQ => Some(tru(QUIET)),
-            _CMP_TRUE_US => Some(tru(LOUD)),
-
-            _CMP_ORD_Q => Some(ord(QUIET)),
-            _CMP_ORD_S => Some(ord(LOUD)),
-
-            _CMP_UNORD_Q => Some(unord(QUIET)),
-            _CMP_UNORD_S => Some(unord(LOUD)),
-
-            // We do this just to ensure we actually cover all possibilities.
-            //
-            // all predicates lie within `0..32`.
-            ..=0 | 32.. => None,
-        }
-    }
-
-    /// Get an AVX immediate value.
-    #[inline]
-    #[must_use]
-    pub const fn to_imm(self) -> i32 {
-        match self {
-            eq(ORD, QUIET) => _CMP_EQ_OQ,
-            eq(ORD, LOUD) => _CMP_EQ_OS,
-
-            eq(UNORD, QUIET) => _CMP_EQ_UQ,
-            eq(UNORD, LOUD) => _CMP_EQ_US,
-
-            not_eq(ORD, QUIET) => _CMP_NEQ_OQ,
-            not_eq(ORD, LOUD) => _CMP_NEQ_OS,
-
-            not_eq(UNORD, QUIET) => _CMP_NEQ_UQ,
-            not_eq(UNORD, LOUD) => _CMP_NEQ_US,
-
-            ge(QUIET) => _CMP_GE_OQ,
-            ge(LOUD) => _CMP_GE_OS,
-
-            not_ge(QUIET) => _CMP_NGE_UQ,
-            not_ge(LOUD) => _CMP_NGE_US,
-
-            gt(QUIET) => _CMP_GT_OQ,
-            gt(LOUD) => _CMP_GT_OS,
-
-            not_gt(QUIET) => _CMP_NGT_UQ,
-            not_gt(LOUD) => _CMP_NGT_US,
-
-            le(QUIET) => _CMP_LE_OQ,
-            le(LOUD) => _CMP_LE_OS,
-
-            not_le(QUIET) => _CMP_NLE_UQ,
-            not_le(LOUD) => _CMP_NLE_US,
-
-            lt(QUIET) => _CMP_LT_OQ,
-            lt(LOUD) => _CMP_LT_OS,
-
-            not_lt(QUIET) => _CMP_NLT_UQ,
-            not_lt(LOUD) => _CMP_NLT_US,
-
-            tru(QUIET) => _CMP_TRUE_UQ,
-            tru(LOUD) => _CMP_TRUE_US,
-
-            fals(QUIET) => _CMP_FALSE_OQ,
-            fals(LOUD) => _CMP_FALSE_OS,
-
-            ord(QUIET) => _CMP_ORD_Q,
-            ord(LOUD) => _CMP_ORD_S,
-
-            unord(QUIET) => _CMP_UNORD_Q,
-            unord(LOUD) => _CMP_UNORD_S,
-        }
-    }
-
-    /// Get the [`Noise`] of this operator.
+impl Cmp {
+    /// Get the noise level of this predicate.
     #[inline]
     #[must_use]
     pub const fn noise(self) -> Noise {
         match self {
-            eq(_, noise)
-            | not_eq(_, noise)
-            | ge(noise)
-            | not_ge(noise)
-            | gt(noise)
-            | not_gt(noise)
-            | le(noise)
-            | not_le(noise)
-            | lt(noise)
-            | not_lt(noise)
-            | fals(noise)
-            | tru(noise)
-            | ord(noise)
-            | unord(noise) => noise,
+            Cmp::EQ
+            | Cmp::EQ_UNORD
+            | Cmp::NEQ
+            | Cmp::NEQ_UNORD
+            | Cmp::GE
+            | Cmp::NGE
+            | Cmp::GT
+            | Cmp::NGT
+            | Cmp::LE
+            | Cmp::NLE
+            | Cmp::LT
+            | Cmp::NLT
+            | Cmp::TRUE
+            | Cmp::FALSE
+            | Cmp::ORD
+            | Cmp::UNORD => Noise::Quiet,
+
+            Cmp::EQ_LOUD
+            | Cmp::EQ_UNORD_LOUD
+            | Cmp::NEQ_LOUD
+            | Cmp::NEQ_UNORD_LOUD
+            | Cmp::GE_LOUD
+            | Cmp::NGE_LOUD
+            | Cmp::GT_LOUD
+            | Cmp::NGT_LOUD
+            | Cmp::LE_LOUD
+            | Cmp::NLE_LOUD
+            | Cmp::LT_LOUD
+            | Cmp::NLT_LOUD
+            | Cmp::TRUE_LOUD
+            | Cmp::FALSE_LOUD
+            | Cmp::ORD_LOUD
+            | Cmp::UNORD_LOUD => Noise::Loud,
         }
     }
 
-    /// Get a reference to the [`Noise`] of this operator.
+    /// Get the [`Order`] of this predicate.
     #[inline]
-    #[must_use]
-    pub const fn noise_ref(&self) -> &Noise {
-        match self {
-            eq(_, noise)
-            | not_eq(_, noise)
-            | ge(noise)
-            | not_ge(noise)
-            | gt(noise)
-            | not_gt(noise)
-            | le(noise)
-            | not_le(noise)
-            | lt(noise)
-            | not_lt(noise)
-            | fals(noise)
-            | tru(noise)
-            | ord(noise)
-            | unord(noise) => noise,
-        }
-    }
-
-    /// Get a mutable reference to the [`Noise`] of this operator.
-    #[inline]
-    #[must_use]
-    pub const fn noise_mut(&mut self) -> &mut Noise {
-        match self {
-            eq(_, noise)
-            | not_eq(_, noise)
-            | ge(noise)
-            | not_ge(noise)
-            | gt(noise)
-            | not_gt(noise)
-            | le(noise)
-            | not_le(noise)
-            | lt(noise)
-            | not_lt(noise)
-            | fals(noise)
-            | tru(noise)
-            | ord(noise)
-            | unord(noise) => noise,
-        }
-    }
-
-    /// Create a new operator the same as this one but with the inverse [`Noise`].
-    #[inline]
-    #[must_use]
-    #[no_mangle]
-    pub const fn inverted_noise(mut self) -> FloatCmp {
-        let noise = self.noise_mut();
-        *noise = noise.invert();
-
-        self
-    }
-
-    /// Get the [`Order`] of this operator.
-    #[inline(always)]
     #[must_use]
     pub const fn order(self) -> Order {
         match self {
-            eq(order, _) | not_eq(order, _) => order,
-            ge(_) | gt(_) | le(_) | lt(_) | fals(_) | ord(_) => ORD,
-            not_ge(_) | not_gt(_) | not_le(_) | not_lt(_) | tru(_) | unord(_) => UNORD,
+            Cmp::EQ
+            | Cmp::EQ_LOUD
+            | Cmp::NEQ
+            | Cmp::NEQ_LOUD
+            | Cmp::GE
+            | Cmp::GE_LOUD
+            | Cmp::GT
+            | Cmp::GT_LOUD
+            | Cmp::LE
+            | Cmp::LE_LOUD
+            | Cmp::LT
+            | Cmp::LT_LOUD
+            | Cmp::FALSE
+            | Cmp::FALSE_LOUD
+            | Cmp::ORD
+            | Cmp::ORD_LOUD => Order::Ordered,
+
+            Cmp::EQ_UNORD
+            | Cmp::EQ_UNORD_LOUD
+            | Cmp::NEQ_UNORD
+            | Cmp::NEQ_UNORD_LOUD
+            | Cmp::NGE
+            | Cmp::NGE_LOUD
+            | Cmp::NGT
+            | Cmp::NGT_LOUD
+            | Cmp::NLE
+            | Cmp::NLE_LOUD
+            | Cmp::NLT
+            | Cmp::NLT_LOUD
+            | Cmp::TRUE
+            | Cmp::TRUE_LOUD
+            | Cmp::UNORD
+            | Cmp::UNORD_LOUD => Order::Unorderd,
         }
     }
 
-    /// Create a new operator with the reverse [`Order`].
+    /// Get this predicate with the inverse [`Noise`].
     #[inline]
     #[must_use]
-    pub const fn reversed_order(self) -> FloatCmp {
-        match self {
-            eq(order, noise) => eq(order.reverse(), noise),
-            not_eq(order, noise) => not_eq(order.reverse(), noise),
-            ge(noise) => not_lt(noise),
-            not_ge(noise) => todo!(),
-            gt(noise) => todo!(),
-            not_gt(noise) => todo!(),
-            le(noise) => todo!(),
-            not_le(noise) => todo!(),
-            lt(noise) => todo!(),
-            not_lt(noise) => todo!(),
-            fals(noise) => todo!(),
-            tru(noise) => todo!(),
-            ord(noise) => unord(noise),
-            unord(noise) => ord(noise),
+    pub const fn inverse_noise(self) -> Cmp {
+        match Cmp::from_i32((self as i32) ^ SIGNAL_BIT) {
+            Some(cmp) => cmp,
+            None => unreachable!(),
         }
+    }
+
+    /// Get this predicate with the inverse [`Order`].
+    #[inline]
+    #[must_use]
+    pub const fn inverse_order(self) -> Cmp {
+        match Cmp::from_i32((self as i32) ^ ORDER_BIT) {
+            Some(cmp) => cmp,
+            None => unreachable!(),
+        }
+    }
+
+    /// Get the inverse of this predicate.
+    #[inline]
+    #[must_use]
+    pub const fn inverse(self) -> Cmp {
+        match Cmp::from_i32((self as i32) ^ RESULT_BIT) {
+            Some(cmp) => cmp,
+            None => unreachable!(),
+        }
+    }
+
+    /// Get the inverse of this predicate while preserving its [`Order`].
+    #[inline]
+    #[must_use]
+    pub const fn reverse(self) -> Cmp {
+        self.inverse().inverse_order()
     }
 }
 
-/// Specifies whether comparisons to `NaN`s results in a `true` or a `false`.
+impl Cmp {
+    #[inline]
+    #[must_use]
+    pub const fn is_eq(self) -> bool {
+        matches!(
+            self,
+            Cmp::EQ | Cmp::EQ_LOUD | Cmp::EQ_UNORD | Cmp::EQ_UNORD_LOUD
+        )
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_neq(self) -> bool {
+        matches!(
+            self,
+            Cmp::NEQ | Cmp::NEQ_LOUD | Cmp::NEQ_UNORD | Cmp::NEQ_UNORD_LOUD
+        )
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_ge(self) -> bool {
+        matches!(self, Cmp::GE | Cmp::GE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_nge(self) -> bool {
+        matches!(self, Cmp::NGE | Cmp::NGE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_gt(self) -> bool {
+        matches!(self, Cmp::GT | Self::GT_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_ngt(self) -> bool {
+        matches!(self, Cmp::NGT | Self::NGT_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_le(self) -> bool {
+        matches!(self, Cmp::LE | Cmp::LE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_nle(self) -> bool {
+        matches!(self, Cmp::NLE | Cmp::NLE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_lt(self) -> bool {
+        matches!(self, Cmp::LT | Cmp::LT_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_nlt(self) -> bool {
+        matches!(self, Cmp::NLT | Cmp::NLT_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_false(self) -> bool {
+        matches!(self, Cmp::FALSE | Cmp::FALSE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_true(self) -> bool {
+        matches!(self, Cmp::TRUE | Cmp::TRUE_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_ord(self) -> bool {
+        matches!(self, Cmp::ORD | Cmp::ORD_LOUD)
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_unord(self) -> bool {
+        matches!(self, Cmp::UNORD | Cmp::UNORD_LOUD)
+    }
+}
+
+impl fmt::Display for Cmp {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// The [`Order`] of a predicate dictates whether it returns `false` or `true` upon
+/// encountering a `NaN`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Order {
-    /// Comparison with a `NaN` results in `false`.
+    /// The comparison results in `false` when comparing with a `NaN`.
     #[default]
     Ordered,
-    /// Comparison with a `NaN` results in `true`.
-    Unordered,
+    /// The comparison results in `true` when comparing with a `NaN`.
+    Unorderd,
 }
 
 impl Order {
-    #[inline(always)]
-    #[must_use]
-    pub const fn reverse(self) -> Order {
-        match self {
-            ORD => UNORD,
-            UNORD => ORD,
-        }
-    }
-
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_ordered(self) -> bool {
-        matches!(self, ORD)
+        matches!(self, Order::Ordered)
     }
 
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_unordered(self) -> bool {
-        matches!(self, UNORD)
+        matches!(self, Order::Unorderd)
     }
 }
 
-/// Specifies whether a floating point operation signals or not.
+/// The [`Noise`] of a predicate dictates whether it is a ***signalling*** or ***non-signalling***
+/// operation.
 ///
-/// # What is Signalling
-///
-/// Signalling means that the floating point "invalid" will be set
-/// when comparing quiet `NaN`s.
-///
-/// See [here](https://stackoverflow.com/questions/16988199/how-to-choose-avx-compare-predicate-variants/64191351#comment113511368_17665386)
-/// for more info.
+/// TODO: Finish describing what it means for something to signal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Noise {
-    /// The operation is non-signalling.
+    /// The comparison is quiet.
     #[default]
     Quiet,
-    /// The operation is signalling.
+    /// The comparison is loud.
     Loud,
 }
 
 impl Noise {
-    #[inline(always)]
-    #[must_use]
-    pub const fn invert(self) -> Noise {
-        match self {
-            QUIET => LOUD,
-            LOUD => QUIET,
-        }
-    }
-
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_quiet(self) -> bool {
-        matches!(self, QUIET)
+        matches!(self, Noise::Quiet)
     }
 
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_loud(self) -> bool {
-        matches!(self, LOUD)
+        matches!(self, Noise::Loud)
     }
 }
-
-pub const QUIET: Noise = Noise::Quiet;
-pub const LOUD: Noise = Noise::Loud;
-
-pub const ORD: Order = Order::Ordered;
-pub const UNORD: Order = Order::Unordered;
