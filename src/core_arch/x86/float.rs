@@ -66,7 +66,7 @@ macro_rules! define {
                 pub const fn name(self) -> &'static str {
                     match self {
                         $(
-                            $name::$pred_name => stringify!($name),
+                            $name::$pred_name => stringify!($pred_name),
                         )*
                     }
                 }
@@ -486,3 +486,5 @@ impl Noise {
         matches!(self, Noise::Loud)
     }
 }
+
+const _X: &str = Cmp::EQ.name();
