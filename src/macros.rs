@@ -26,10 +26,6 @@ macro_rules! vector_base {
     ($name:ident $(/ $half:ident)? : [$scalar:ident; $lanes:tt], $bits:tt) => {
         // Layout checks
         const _: () = {
-            #[allow(unused)]
-            use ::core::mem::{ size_of, align_of };
-            use ::core::assert;
-
             assert!(
                 size_of::<$name>() == size_of::<[$scalar; $lanes]>(),
                 "vector does not have the same size as its corresponding array"
@@ -56,12 +52,6 @@ macro_rules! vector_base {
 
         // Ensure that the vector bit width is correct.
         const _: () = {
-            #[allow(unused)]
-            use ::core::mem::size_of;
-
-            #[allow(unused)]
-            use ::core::{ panic, concat, stringify };
-
             match size_of::<$name>().checked_mul(8) {
                 Some($bits) => {},
                 _ => panic!("{}", concat!(
@@ -73,7 +63,7 @@ macro_rules! vector_base {
 
         impl $name {
             /// Create a new vector from an array of scalars.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn from_array(array: [$scalar; $lanes]) -> $name {
                 // SAFETY: We know they have the same in-memory representation.
@@ -82,7 +72,7 @@ macro_rules! vector_base {
 
             $(
                 /// Create a new vector by joining two halves of a vector.
-                #[inline(always)]
+                #[inline]
                 #[must_use]
                 pub const fn from_halves(a: $half, b: $half) -> $name {
                     // SAFETY: We know they have the same in-memory representation.
@@ -95,11 +85,9 @@ macro_rules! vector_base {
             /// # Panics
             ///
             /// Panics if the slice isn't large enough.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn from_slice(slice: &[$scalar]) -> $name {
-                use ::core::panic;
-
                 if slice.len() >= $lanes {
                     $name::from_array(unsafe { (slice as *const [$scalar] as *const [$scalar; $lanes]).read() })
                 } else {
@@ -108,7 +96,7 @@ macro_rules! vector_base {
             }
 
             /// Get an array of scalars from a vector.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn to_array(self) -> [$scalar; $lanes] {
                 // SAFETY: We know they have the same in-memory representation.
@@ -117,7 +105,7 @@ macro_rules! vector_base {
 
             $(
                 /// Split this vector into an array of halves.
-                #[inline(always)]
+                #[inline]
                 #[must_use]
                 pub const fn to_halves(self) -> [$half; 2] {
                     // SAFETY: We know they have the same in-memory representation.
@@ -125,7 +113,7 @@ macro_rules! vector_base {
                 }
 
                 /// Split this vector into two halves.
-                #[inline(always)]
+                #[inline]
                 #[must_use]
                 pub const fn split(self) -> ($half, $half) {
                     let [a, b] = self.to_halves();
@@ -135,7 +123,7 @@ macro_rules! vector_base {
             )?
 
             /// Get a reference to the inner array of scalars.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn as_array(&self) -> &[$scalar; $lanes] {
                 // SAFETY: We know they have the same layout and
@@ -146,7 +134,7 @@ macro_rules! vector_base {
 
             $(
                 /// Get a reference to this vector's halves.
-                #[inline(always)]
+                #[inline]
                 #[must_use]
                 pub const fn as_halves(&self) -> &[$half; 2] {
                     // SAFETY: We do compile time checks to ensure they have
@@ -157,7 +145,7 @@ macro_rules! vector_base {
             )?
 
             /// Get a mutable reference to the inner array of scalars.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn as_array_mut(&mut self) -> &mut [$scalar; $lanes] {
                 // SAFETY: We know they have the same layout and
@@ -168,7 +156,7 @@ macro_rules! vector_base {
 
             $(
                 /// Get a mutable reference to this vector's halves.
-                #[inline(always)]
+                #[inline]
                 #[must_use]
                 pub const fn as_halves_mut(&mut self) -> &mut [$half; 2] {
                     // SAFETY: We know that this vector is properly
@@ -181,14 +169,14 @@ macro_rules! vector_base {
             )?
 
             /// Get a reference to the inner slice of scalars.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn as_slice(&self) -> &[$scalar] {
                 self.as_array()
             }
 
             /// Get a mutable reference to the inner slice of scalars.
-            #[inline(always)]
+            #[inline]
             #[must_use]
             pub const fn as_slice_mut(&mut self) -> &mut [$scalar] {
                 self.as_array_mut()
@@ -196,14 +184,14 @@ macro_rules! vector_base {
         }
 
         impl ::core::borrow::Borrow<[$scalar; $lanes]> for $name {
-            #[inline(always)]
+            #[inline]
             fn borrow(&self) -> &[$scalar; $lanes] {
                 self.as_array()
             }
         }
 
         impl ::core::borrow::Borrow<[$scalar]> for $name {
-            #[inline(always)]
+            #[inline]
             fn borrow(&self) -> &[$scalar] {
                 self.as_slice()
             }
@@ -211,14 +199,14 @@ macro_rules! vector_base {
 
         $(
             impl ::core::borrow::Borrow<[$half; 2]> for $name {
-                #[inline(always)]
+                #[inline]
                 fn borrow(&self) -> &[$half; 2] {
                     self.as_halves()
                 }
             }
 
             impl ::core::borrow::Borrow<[$half]> for $name {
-                #[inline(always)]
+                #[inline]
                 fn borrow(&self) -> &[$half] {
                     self.as_halves()
                 }
@@ -226,7 +214,7 @@ macro_rules! vector_base {
         )?
 
         impl ::core::borrow::BorrowMut<[$scalar; $lanes]> for $name {
-            #[inline(always)]
+            #[inline]
             fn borrow_mut(&mut self) -> &mut [$scalar; $lanes] {
                 self.as_array_mut()
             }
@@ -234,7 +222,7 @@ macro_rules! vector_base {
 
 
         impl ::core::borrow::BorrowMut<[$scalar]> for $name {
-            #[inline(always)]
+            #[inline]
             fn borrow_mut(&mut self) -> &mut [$scalar] {
                 self.as_slice_mut()
             }
@@ -243,62 +231,119 @@ macro_rules! vector_base {
 
         $(
             impl ::core::borrow::BorrowMut<[$half; 2]> for $name {
-                #[inline(always)]
+                #[inline]
                 fn borrow_mut(&mut self) -> &mut [$half; 2] {
                     self.as_halves_mut()
                 }
             }
 
             impl ::core::borrow::BorrowMut<[$half]> for $name {
-                #[inline(always)]
+                #[inline]
                 fn borrow_mut(&mut self) -> &mut [$half] {
                     self.as_halves_mut()
                 }
             }
         )?
 
-        impl ::core::convert::AsRef<[$scalar; $lanes]> for $name {
-            #[inline(always)]
+        impl AsRef<[$scalar; $lanes]> for $name {
+            #[inline]
             fn as_ref(&self) -> &[$scalar; $lanes] {
                 self.as_array()
             }
         }
 
-        impl ::core::convert::AsRef<[$scalar]> for $name {
-            #[inline(always)]
+        impl AsRef<[$scalar]> for $name {
+            #[inline]
             fn as_ref(&self) -> &[$scalar] {
                 self.as_slice()
             }
         }
 
         $(
-            impl ::core::convert::AsRef<[$half; 2]> for $name {
-                #[inline(always)]
+            impl AsRef<[$half; 2]> for $name {
+                #[inline]
                 fn as_ref(&self) -> &[$half; 2] {
                     self.as_halves()
                 }
             }
 
-            impl ::core::convert::AsRef<[$half]> for $name {
-                #[inline(always)]
+            impl AsRef<[$half]> for $name {
+                #[inline]
                 fn as_ref(&self) -> &[$half] {
                     self.as_halves()
                 }
             }
         )?
 
+        impl AsMut<[$scalar; $lanes]> for $name {
+            #[inline]
+            fn as_mut(&mut self) -> &mut [$scalar; $lanes] {
+                self.as_array_mut()
+            }
+        }
+
+        impl AsMut<[$scalar]> for $name {
+            #[inline]
+            fn as_mut(&mut self) -> &mut [$scalar] {
+                self.as_slice_mut()
+            }
+        }
+
+        $(
+            impl AsMut<[$half; 2]> for $name {
+                #[inline]
+                fn as_mut(&mut self) -> &mut [$half; 2] {
+                    self.as_halves_mut()
+                }
+            }
+
+            impl AsMut<[$half]> for $name {
+                #[inline]
+                fn as_mut(&mut self) -> &mut [$half] {
+                    self.as_halves_mut()
+                }
+            }
+        )?
+
+        impl IntoIterator for $name {
+            type Item = $scalar;
+            type IntoIter = ::core::array::IntoIter<$scalar, $lanes>;
+
+            #[inline]
+            fn into_iter(self) -> ::core::array::IntoIter<$scalar, $lanes> {
+                self.to_array().into_iter()
+            }
+        }
+
+        impl<'a> IntoIterator for &'a $name {
+            type Item = &'a $scalar;
+            type IntoIter = ::core::slice::Iter<'a, $scalar>;
+
+            #[inline]
+            fn into_iter(self) -> ::core::slice::Iter<'a, $scalar> {
+                self.as_slice().iter()
+            }
+        }
+
+        impl<'a> IntoIterator for &'a mut $name {
+            type Item = &'a mut $scalar;
+            type IntoIter = ::core::slice::IterMut<'a, $scalar>;
+            #[inline]
+            fn into_iter(self) -> ::core::slice::IterMut<'a, $scalar> {
+                self.as_slice_mut().iter_mut()
+            }
+        }
+
         impl ::core::fmt::Debug for $name {
             #[inline]
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                use ::core::fmt::{Formatter, DebugTuple};
-
-                let mut debug = &mut Formatter::debug_tuple(f, "");
+                let mut debug = &mut f.debug_tuple("");
 
                 for value in self.as_array() {
-                    debug = DebugTuple::field(debug, value);
+                    debug = debug.field(value);
                 }
 
-                DebugTuple::finish(debug)
+                debug.finish()
             }
         }
     };
@@ -361,8 +406,6 @@ macro_rules! vector {
         }
     ) => {
         const _: () = {
-            use core::assert;
-
             assert!($lanes != 1, "vectors with one lane have no vectors half their size");
         };
 
@@ -384,6 +427,24 @@ macro_rules! vector {
             ),*)))]
             pub(crate) halves: [$half; 2],
         }
+
+        $(
+            $(#[cfg($cfg_pred)])*
+            impl From<::core::arch::$arch::$type> for $name {
+                #[inline]
+                fn from(value: ::core::arch::$arch::$type) -> $name {
+                    $name { $field: value }
+                }
+            }
+
+            $(#[cfg($cfg_pred)])*
+            impl From<$name> for ::core::arch::$arch::$type {
+                #[inline]
+                fn from(value: $name) -> ::core::arch::$arch::$type {
+                    value.$field
+                }
+            }
+        )*
 
         $crate::macros::vector_base!($name/$half: [$scalar; $lanes], $bits);
     };
@@ -434,8 +495,36 @@ macro_rules! exports {
 
 pub(crate) use exports;
 
-macro_rules! mask_type {
+macro_rules! mask_docs {
     () => {};
 }
 
+pub(crate) use mask_docs;
+
+macro_rules! mask_type {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            repr: $repr:ident,
+            bits: $bits:tt
+
+            $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[repr($repr)]
+        $vis enum $name {
+            All = -1,
+            None = 0,
+        }
+    };
+}
+
 pub(crate) use mask_type;
+
+macro_rules! masks {
+    () => {};
+}
+
+pub(crate) use masks;

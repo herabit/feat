@@ -11,7 +11,7 @@ pub mod i16;
 pub mod i32;
 /// Module for [`prim@i64`] vectors.
 pub mod i64;
-// Module for [`prim@i8`] vectors.
+/// Module for [`prim@i8`] vectors.
 pub mod i8;
 
 /// Module for [`prim@u16`] vectors.
@@ -20,7 +20,7 @@ pub mod u16;
 pub mod u32;
 /// Module for [`prim@u64`] vectors.
 pub mod u64;
-// Module for [`prim@u8`] vectors.
+/// Module for [`prim@u8`] vectors.
 pub mod u8;
 
 pub(crate) mod exports {

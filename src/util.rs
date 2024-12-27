@@ -1,5 +1,78 @@
 #![allow(dead_code)]
 
+pub(crate) mod mem {
+    /// A thin wrapper around [`core::mem::transmute_copy`]
+    #[inline(always)]
+    #[must_use]
+    pub(crate) const unsafe fn transmute_unchecked<Src, Dst>(src: Src) -> Dst {
+        unsafe { ::core::mem::transmute_copy(&::core::mem::ManuallyDrop::new(src)) }
+    }
+}
+
+pub(crate) mod array {
+    use core::mem::MaybeUninit;
+
+    #[inline(always)]
+    pub(crate) const fn each_ref<'a, T, const N: usize>(arr: &'a [T; N]) -> [&'a T; N] {
+        let mut remaining: &'a [T] = arr;
+
+        let output: [MaybeUninit<&'a T>; N] = {
+            let mut output = [MaybeUninit::uninit(); N];
+            let mut out: &mut [MaybeUninit<&'a T>] = &mut output;
+
+            // Both slices are always going to be exactly the same size.
+            //
+            // Hence this will always initialize `output` with valid references.
+            while let ([o, o_rest @ ..], [r, r_rest @ ..]) = (out, remaining) {
+                // MaybeUninit::write is not stable in const yet.
+                *o = MaybeUninit::<&'a T>::new(r);
+
+                out = o_rest;
+                remaining = r_rest;
+            }
+
+            output
+        };
+
+        // Circumvent some issues with transmute.
+        //
+        // We know that all of the references within `output` have been initialized
+        // with valid references.
+        unsafe { super::mem::transmute_unchecked(output) }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn each_mut<'a, T, const N: usize>(arr: &'a mut [T; N]) -> [&'a mut T; N] {
+        let mut remaining: &'a mut [T] = arr;
+
+        let output: [MaybeUninit<&'a mut T>; N] = {
+            let mut output = [const { MaybeUninit::uninit() }; N];
+            let mut out: &mut [MaybeUninit<&'a mut T>] = &mut output;
+
+            // Both slices are always going to be exactly the same size.
+            //
+            // Hence this will always initialize `output` with valid references.
+            //
+            // Additionally, these references will not be aliased at all due to us
+            // treating `remaining` like a mutable slice's iterator, so once an element is taken
+            // from `remaining`, it can only be observed in the output array.
+            while let ([o, o_rest @ ..], [r, r_rest @ ..]) = (out, remaining) {
+                *o = MaybeUninit::<&'a mut T>::new(r);
+
+                out = o_rest;
+                remaining = r_rest;
+            }
+
+            output
+        };
+
+        // Circumvent some issues with transmute.
+        //
+        // We know that all of the references within `output` have been initialized and not aliased.
+        unsafe { super::mem::transmute_unchecked(output) }
+    }
+}
+
 pub(crate) mod string {
     use super::bytes;
 
